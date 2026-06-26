@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>NEURAL HACK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+
+    /* ═══════════════════════════════════════════════
+       SECTION 1 — CSS CUSTOM PROPERTIES
+    ═══════════════════════════════════════════════ */
+    :root {
+      --bg-base:      #010A01;
+      --bg-surface:   #051205;
+      --bg-elevated:  #0A1F0A;
+      --border:       #0D3D0D;
+
+      --matrix-green: #00FF41;
+      --matrix-dim:   #00AA2A;
+      --matrix-glow:  rgba(0, 255, 65, 0.15);
+      --matrix-faint: #003B00;
+
+      --text-primary:   #00FF41;
+      --text-secondary: #00AA2A;
+      --text-muted:     #005500;
+
+      --danger:  #FF3131;
+      --warning: #FFB800;
+
+      --font: 'Share Tech Mono', monospace;
+
+      /* layout constants */
+      --nav-h: 64px;
+      --radius: 3px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 2 — RESET & BASE
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after {
+      margin: 0; padding: 0; box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg-base);
+      font-family: var(--font);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font-family: var(--font); cursor: pointer; border: none; background: none; }
+    button:active:not(:disabled) { transform: scale(0.96); transition: transform 100ms; }
+    button:disabled { cursor: not-allowed; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 3 — FIXED ATMOSPHERIC LAYERS
+    ═══════════════════════════════════════════════ */
+    #matrix {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.18;
+    }
+
+    #scanlines {
+      position: fixed; inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent          0px,
+        transparent          2px,
+        rgba(0,0,0,0.03)     2px,
+        rgba(0,0,0,0.03)     4px
+      );
+    }
+
+    #vignette {
+      position: fixed; inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: radial-gradient(
+        ellipse at 50% 50%,
+        transparent 55%,
+        rgba(0,0,0,0.75) 100%
+      );
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 4 — APP SHELL & LAYOUT
+    ═══════════════════════════════════════════════ */
+    #app {
+      position: fixed; inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #content {
+      flex: 1 1 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      position: relative;
+    }
+    #content::-webkit-scrollbar { display: none; }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 5 — BOTTOM NAVIGATION
+    ═══════════════════════════════════════════════ */
+    #bottom-nav {
+      display: flex;
+      height: var(--nav-h);
+      flex-shrink: 0;
+      background: rgba(5, 18, 5, 0.96);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-top: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    .nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-muted);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      position: relative;
+      transition: color 150ms;
+      padding: 0;
+    }
+
+    .nav-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 20%; right: 20%;
+      height: 2px;
+      background: var(--matrix-green);
+      box-shadow: 0 0 6px var(--matrix-green);
+      opacity: 0;
+      transition: opacity 150ms;
+    }
+
+    .nav-btn.active            { color: var(--matrix-green); }
+    .nav-btn.active::before    { opacity: 1; }
+
+    .nav-icon { font-size: 18px; line-height: 1; }
+    .nav-lbl  { font-size: 9px; letter-spacing: 1px; }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 6 — TAB PANELS & TRANSITIONS
+    ═══════════════════════════════════════════════ */
+    .tab-panel {
+      display: none;
+      min-height: 100%;
+      padding: 16px 16px calc(var(--nav-h) + 16px);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 250ms ease-out, transform 250ms ease-out;
+      background: rgba(1, 10, 1, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .tab-panel.active  { display: block; }
+    .tab-panel.visible { opacity: 1; transform: translateY(0); }
+
+    /* shared section heading */
+    .section-hdr {
+      font-size: 11px;
+      color: var(--text-secondary);
+      letter-spacing: 3px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+      font-weight: normal;
+    }
+
+    /* shared utility colours */
+    .green { color: var(--matrix-green); }
+    .warn  { color: var(--warning); }
+    .muted { color: var(--text-muted); }
+
+    /* shared card surface */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .micro-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 1.5px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 7 — HACK SCREEN LAYOUT
+    ═══════════════════════════════════════════════ */
+    #tab-hack { padding-left: 20px; padding-right: 20px; }
+
+    .hack-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: calc(100dvh - var(--nav-h));
+      justify-content: space-evenly;
+      gap: 4px;
+    }
+
+    /* level bar */
+    .level-bar-wrap { width: 100%; }
+
+    .level-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .xp-track {
+      width: 100%; height: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .xp-fill {
+      height: 100%; width: 0%;
+      background: var(--matrix-green);
+      box-shadow: 0 0 8px rgba(0,255,65,0.6);
+      transition: width 600ms ease-out;
+    }
+
+    /* stats bar */
+    .stats-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .stat-block       { display: flex; flex-direction: column; gap: 2px; }
+    .stat-block.right { text-align: right; }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      color: var(--matrix-green);
+      text-shadow: 0 0 12px rgba(0,255,65,0.45);
+      letter-spacing: 1px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 8 — CORE ORB
+    ═══════════════════════════════════════════════ */
+    .core-wrap {
+      position: relative;
+      width: 220px; height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* rings — all centred via absolute + translate */
+    .ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 2px dashed var(--matrix-dim);
+      pointer-events: none;
+    }
+
+    .ring-outer  { width: 210px; height: 210px; animation: spin  8s linear infinite; opacity: 0.65; }
+    .ring-mid    { width: 178px; height: 178px; animation: spin-r 4s linear infinite; border-color: var(--matrix-green); opacity: 0.45; }
+    .ring-inner  { width: 148px; height: 148px; animation: spin  14s linear infinite; opacity: 0.25; border-style: solid; }
+
+    @keyframes spin   { to { transform: translate(-50%,-50%) rotate(360deg);  } }
+    @keyframes spin-r { to { transform: translate(-50%,-50%) rotate(-360deg); } }
+
+    /* data nodes — whole orbit div rotates, nodes fixed inside it */
+    .nodes-orbit {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      animation: spin 10s linear infinite;
+      pointer-events: none;
+    }
+
+    .data-node {
+      position: absolute;
+      width: 8px; height: 8px;
+      background: var(--matrix-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(0,255,65,0.9);
+      transform: translate(-50%, -50%);
+    }
+
+    /* particles orbit (level 9+) */
+    .particles-orbit {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      pointer-events: none;
+    }
+
+    .p-arm {
+      position: absolute;
+      width: 0; height: 0;
+      transform-origin: 0 0;
+    }
+
+    .p-dot {
+      position: absolute;
+      width: 4px; height: 4px;
+      background: var(--matrix-green);
+      border-radius: 50%;
+      box-shadow: 0 0 5px rgba(0,255,65,1);
+      transform: translate(-50%, -50%);
+    }
+
+    /* clickable body */
+    .core-body {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 35%, #0D3D0D 0%, #010A01 68%);
+      border: 2px solid var(--matrix-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      box-shadow:
+        0 0 40px rgba(0,255,65,0.28),
+        inset 0 0 24px rgba(0,255,65,0.08);
+      animation: core-pulse 3s ease-in-out infinite alternate;
+      transition: box-shadow 400ms ease-out;
+      z-index: 2;
+    }
+
+    @keyframes core-pulse {
+      from { box-shadow: 0 0 40px rgba(0,255,65,0.28), inset 0 0 24px rgba(0,255,65,0.08); }
+      to   { box-shadow: 0 0 64px rgba(0,255,65,0.50), inset 0 0 36px rgba(0,255,65,0.18); }
+    }
+
+    .core-body.core-flare {
+      animation: none;
+      box-shadow:
+        0 0 80px rgba(0,255,65,0.75),
+        inset 0 0 40px rgba(0,255,65,0.30);
+    }
+
+    .core-body.core-depleted {
+      opacity: 0.35;
+      cursor: not-allowed;
+      animation: none;
+    }
+
+    .core-svg { width: 72px; height: 72px; pointer-events: none; }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 9 — ENERGY BAR
+    ═══════════════════════════════════════════════ */
+    .energy-wrap { width: 100%; }
+
+    .energy-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .recharge-text {
+      color: var(--danger);
+      display: none;
+      animation: blink 0.5s step-end infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    .energy-track {
+      width: 100%; height: 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .energy-fill {
+      height: 100%; width: 100%;
+      background: var(--matrix-green);
+      box-shadow: 0 0 8px rgba(0,255,65,0.35);
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent 0px, transparent 9px,
+        rgba(0,0,0,0.18) 9px, rgba(0,0,0,0.18) 11px
+      );
+      transition: width 200ms linear, background-color 200ms;
+    }
+
+    .energy-fill.ef-danger {
+      background-color: var(--danger);
+      animation: ef-flash 0.28s ease;
+    }
+
+    @keyframes ef-flash { 0%,100%{opacity:1} 40%{opacity:0.2} }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 10 — UPGRADE CARDS
+    ═══════════════════════════════════════════════ */
+    .upg-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      transition: border-color 250ms, opacity 250ms;
+    }
+
+    .upg-card.upg-affordable {
+      animation: border-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes border-glow {
+      0%,100% { border-color: var(--border); box-shadow: none; }
+      50%      { border-color: var(--matrix-dim); box-shadow: 0 0 12px rgba(0,255,65,0.1); }
+    }
+
+    .upg-card.upg-purchased    { opacity: 0.45; border-color: var(--matrix-faint); }
+    .upg-card.upg-locked       { opacity: 0.55; }
+
+    .upg-icon  { font-size: 22px; width: 32px; text-align: center; flex-shrink: 0; }
+
+    .upg-info  { flex: 1; min-width: 0; }
+    .upg-name  { font-size: 13px; color: var(--text-primary); letter-spacing: 0.5px; margin-bottom: 2px; }
+    .upg-desc  { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .upg-fx    { font-size: 11px; color: var(--matrix-dim); }
+
+    .upg-right {
+      display: flex; flex-direction: column;
+      align-items: flex-end; gap: 6px; flex-shrink: 0;
+    }
+    .upg-cost  { font-size: 13px; color: var(--matrix-green); }
+
+    .btn-install {
+      padding: 6px 12px;
+      border: 1px solid var(--matrix-dim);
+      color: var(--matrix-green);
+      font-size: 11px;
+      letter-spacing: 1px;
+      border-radius: 2px;
+      transition: background 120ms;
+    }
+    .btn-install:hover:not(:disabled) { background: var(--matrix-glow); }
+    .btn-install:disabled { opacity: 0.38; }
+    .btn-install.installed { border-color: var(--text-muted); color: var(--text-muted); }
+
+    /* boost cards */
+    .boost-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      transition: border-color 250ms, box-shadow 250ms;
+    }
+
+    .boost-card.boost-active {
+      border-color: var(--matrix-green);
+      box-shadow: 0 0 18px rgba(0,255,65,0.18);
+    }
+
+    .boost-card.boost-cooldown { opacity: 0.48; }
+
+    .boost-icon { font-size: 22px; width: 32px; text-align: center; flex-shrink: 0; }
+    .boost-info { flex: 1; }
+    .boost-name { font-size: 13px; color: var(--text-primary); letter-spacing: 0.5px; margin-bottom: 2px; }
+    .boost-desc { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .boost-timer       { font-size: 12px; color: var(--matrix-green); }
+    .boost-timer.cd    { color: var(--text-muted); }
+
+    .btn-boost {
+      padding: 8px 14px;
+      border: 1px solid var(--matrix-dim);
+      color: var(--matrix-green);
+      font-size: 11px;
+      letter-spacing: 1px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      transition: background 120ms;
+    }
+    .btn-boost:hover:not(:disabled) { background: var(--matrix-glow); }
+    .btn-boost:disabled { opacity: 0.38; }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 11 — LEADERBOARD
+    ═══════════════════════════════════════════════ */
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(13,61,13,0.3);
+    }
+
+    .lb-row.lb-me {
+      border: 1px solid var(--matrix-green);
+      border-radius: var(--radius);
+      background: rgba(0,255,65,0.04);
+      margin: 4px 0;
+    }
+
+    .lb-rank           { font-size: 12px; width: 30px; flex-shrink: 0; color: var(--text-muted); }
+    .lb-rank.gold      { color: #FFD700; text-shadow: 0 0 8px rgba(255,215,0,0.6); }
+    .lb-rank.silver    { color: #C0C0C0; }
+    .lb-rank.bronze    { color: #CD7F32; }
+
+    .lb-av {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      color: var(--bg-base);
+      flex-shrink: 0;
+      font-weight: bold;
+    }
+
+    .lb-name  { flex: 1; font-size: 13px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-score { font-size: 13px; color: var(--matrix-green); flex-shrink: 0; }
+
+    .lb-you {
+      font-size: 9px; padding: 2px 5px;
+      background: var(--matrix-green); color: var(--bg-base);
+      border-radius: 2px; letter-spacing: 1px; flex-shrink: 0;
+    }
+
+    .lb-footer {
+      text-align: center; font-size: 10px;
+      color: var(--text-muted); padding: 16px 0;
+      letter-spacing: 1px;
+    }
+
+    .lb-ellipsis {
+      text-align: center; font-size: 16px;
+      color: var(--text-muted); padding: 8px;
+      letter-spacing: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 12 — FRENS TAB
+    ═══════════════════════════════════════════════ */
+    .referral-link {
+      font-size: 11px;
+      color: var(--matrix-dim);
+      word-break: break-all;
+      padding: 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      margin: 10px 0;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-row { display: flex; gap: 8px; }
+
+    .btn-outline {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--matrix-green);
+      color: var(--matrix-green);
+      font-size: 12px;
+      letter-spacing: 1px;
+      border-radius: 2px;
+      transition: background 120ms;
+    }
+    .btn-outline:hover  { background: var(--matrix-glow); }
+
+    .reward-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .reward-table th {
+      text-align: left; padding: 10px 14px;
+      font-size: 10px; letter-spacing: 1.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: normal;
+    }
+    .reward-table td { padding: 11px 14px; border-bottom: 1px solid rgba(13,61,13,0.3); color: var(--text-secondary); }
+    .reward-table td:last-child { text-align: right; }
+    .reward-table tr:last-child td { border-bottom: none; }
+
+    .fren-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(13,61,13,0.3);
+    }
+
+    .fren-av {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--matrix-dim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--matrix-green);
+      flex-shrink: 0;
+    }
+
+    .fren-info { flex: 1; }
+    .fren-name { font-size: 13px; color: var(--text-primary); margin-bottom: 2px; }
+    .frens-total { text-align: center; padding: 16px 0 4px; font-size: 13px; color: var(--text-secondary); }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 13 — PROFILE TAB
+    ═══════════════════════════════════════════════ */
+    .terminal-block {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-size: 12px;
+      line-height: 2;
+    }
+
+    .t-row  { display: flex; flex-wrap: wrap; gap: 6px; }
+    .t-key  { color: var(--text-muted); min-width: 172px; }
+    .t-val  { color: var(--matrix-green); }
+
+    .blink-slow { animation: blink 1.4s step-end infinite; }
+
+    .badges-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .badge {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+      padding: 14px 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      text-align: center;
+      transition: border-color 300ms, box-shadow 300ms;
+    }
+
+    .badge.unlocked {
+      border-color: var(--matrix-dim);
+      box-shadow: 0 0 12px rgba(0,255,65,0.1);
+    }
+
+    .badge-icon {
+      font-size: 24px;
+      line-height: 1;
+      color: var(--text-muted);
+    }
+    .badge.unlocked .badge-icon { color: var(--matrix-green); }
+
+    .badge-name {
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+    }
+    .badge.unlocked .badge-name { color: var(--text-secondary); }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 14 — TOAST SYSTEM
+    ═══════════════════════════════════════════════ */
+    #toast-wrap {
+      position: fixed;
+      bottom: calc(var(--nav-h) + 12px);
+      left: 16px; right: 16px;
+      z-index: 200;
+      pointer-events: none;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+
+    .toast {
+      background: rgba(5, 18, 5, 0.97);
+      border-left: 3px solid var(--matrix-green);
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 14px;
+      border-radius: 2px;
+      font-size: 12px;
+      color: var(--text-primary);
+      letter-spacing: 0.4px;
+      display: flex; align-items: center; gap: 10px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: toast-in 220ms ease-out forwards;
+    }
+
+    .toast.t-warn  { border-left-color: var(--warning); }
+    .toast.t-error { border-left-color: var(--danger);  }
+    .toast.t-hide  { animation: toast-out 220ms ease-in forwards; }
+
+    .toast-icon { opacity: 0.7; flex-shrink: 0; }
+
+    @keyframes toast-in  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes toast-out { from{opacity:1;transform:translateY(0)}    to{opacity:0;transform:translateY(-8px)} }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 15 — TRANSIENT EFFECTS
+    ═══════════════════════════════════════════════ */
+
+    /* floating +N click text */
+    .float-txt {
+      position: fixed;
+      font-size: 18px;
+      color: var(--matrix-green);
+      text-shadow: 0 0 12px rgba(0,255,65,0.85);
+      pointer-events: none;
+      z-index: 150;
+      animation: float-up 600ms ease-out forwards;
+    }
+
+    @keyframes float-up {
+      0%   { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-60px); }
+    }
+
+    /* level-up fullscreen flash */
+    .lvlup-flash {
+      position: fixed; inset: 0;
+      background: rgba(0, 255, 65, 0.12);
+      pointer-events: none;
+      z-index: 100;
+      animation: lvlflash 200ms ease-out forwards;
+    }
+
+    @keyframes lvlflash { from{opacity:1} to{opacity:0} }
+
+    /* boost scanline sweep */
+    .scanline-sweep {
+      position: fixed;
+      left: 0; right: 0;
+      top: -100%; height: 100%;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0,255,65,0.07) 50%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 100;
+      animation: sweep 420ms ease-out forwards;
+    }
+
+    @keyframes sweep { from{top:-100%} to{top:100%} }
+
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       LAYER 0 — MATRIX RAIN CANVAS
+  ═══════════════════════════════════════════ -->
+  <canvas id="matrix"></canvas>
+
+  <!-- ═══════════════════════════════════════════
+       LAYER 1 — ATMOSPHERIC OVERLAYS
+  ═══════════════════════════════════════════ -->
+  <div id="scanlines" aria-hidden="true"></div>
+  <div id="vignette"  aria-hidden="true"></div>
+
+  <!-- ═══════════════════════════════════════════
+       LAYER 2 — APPLICATION SHELL
+  ═══════════════════════════════════════════ -->
+  <div id="app">
+
+    <!-- ─── SCROLLABLE CONTENT AREA ─── -->
+    <main id="content" role="main">
+
+      <!-- TAB: HACK ─────────────────────────── -->
+      <section id="tab-hack" class="tab-panel active" role="tabpanel" aria-label="Hack">
+
+        <div class="hack-screen">
+
+          <!-- level / xp -->
+          <div class="level-bar-wrap" id="level-bar-wrap">
+            <div class="level-meta">
+              <span id="level-label">LVL 01 — SCRIPT KIDDIE</span>
+              <span id="xp-label">0 / 500 XP</span>
+            </div>
+            <div class="xp-track">
+              <div class="xp-fill" id="xp-fill"></div>
+            </div>
+          </div>
+
+          <!-- credits / per-sec stats -->
+          <div class="stats-bar">
+            <div class="stat-block">
+              <div class="stat-label">CREDITS</div>
+              <div class="stat-value" id="credits-display" data-val="0">0</div>
+            </div>
+            <div class="stat-block right">
+              <div class="stat-label">PER SEC</div>
+              <div class="stat-value" id="passive-display">0</div>
+            </div>
+          </div>
+
+          <!-- core orb -->
+          <div class="core-wrap" id="core-wrap">
+            <div class="ring ring-outer"  id="ring-outer"></div>
+            <div class="ring ring-mid"    id="ring-mid"></div>
+            <div class="ring ring-inner"  id="ring-inner"></div>
+
+            <!-- data nodes (level 7+) -->
+            <div class="nodes-orbit" id="nodes-orbit"></div>
+
+            <!-- orbit particles (level 9+) -->
+            <div class="particles-orbit" id="particles-orbit"></div>
+
+            <!-- clickable core body -->
+            <div class="core-body" id="core" role="button" aria-label="Hack the core" tabindex="0">
+              <svg class="core-svg" id="core-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>
+            </div>
+          </div>
+
+          <!-- energy bar -->
+          <div class="energy-wrap">
+            <div class="energy-meta">
+              <span id="energy-label">ENERGY: 100 / 100</span>
+              <span id="energy-recharge" class="recharge-text">RECHARGING...</span>
+            </div>
+            <div class="energy-track">
+              <div class="energy-fill" id="energy-fill"></div>
+            </div>
+          </div>
+
+        </div><!-- .hack-screen -->
+      </section>
+
+      <!-- TAB: UPGRADES ─────────────────────── -->
+      <section id="tab-upgrades" class="tab-panel" role="tabpanel" aria-label="Upgrades">
+        <h2 class="section-hdr">// SYSTEM UPGRADES</h2>
+        <div id="upgrades-list"></div>
+        <h2 class="section-hdr" style="margin-top:24px">// ACTIVE BOOSTS</h2>
+        <div id="boosts-list"></div>
+      </section>
+
+      <!-- TAB: LEADERBOARD ──────────────────── -->
+      <section id="tab-leaderboard" class="tab-panel" role="tabpanel" aria-label="Ranking">
+        <h2 class="section-hdr">// GLOBAL RANKING</h2>
+        <div id="lb-list"></div>
+        <p class="lb-footer">Last updated: just now</p>
+      </section>
+
+      <!-- TAB: FRENS ────────────────────────── -->
+      <section id="tab-frens" class="tab-panel" role="tabpanel" aria-label="Frens">
+        <h2 class="section-hdr">// RECRUIT AGENTS</h2>
+
+        <div class="card">
+          <div class="micro-label" style="letter-spacing:2px;margin-bottom:8px">YOUR REFERRAL LINK</div>
+          <div class="referral-link" id="referral-link">t.me/neuralhack_bot?start=USR_000000</div>
+          <div class="btn-row">
+            <button class="btn-outline" id="btn-copy">[ COPY LINK ]</button>
+            <button class="btn-outline" id="btn-share">[ SHARE VIA TG ]</button>
+          </div>
+        </div>
+
+        <h2 class="section-hdr" style="margin-top:20px">// REWARD TIERS</h2>
+        <div class="card" style="padding:0">
+          <table class="reward-table">
+            <thead><tr><th>FRENS INVITED</th><th>REWARD</th></tr></thead>
+            <tbody>
+              <tr><td>1 fren</td>  <td class="green">+500 credits</td></tr>
+              <tr><td>3 frens</td> <td class="green">+2,000 credits</td></tr>
+              <tr><td>10 frens</td><td class="green">+10,000 credits</td></tr>
+              <tr><td>25 frens</td><td class="warn">PHANTOM UNLOCK</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="section-hdr" style="margin-top:20px">// RECRUITED AGENTS</h2>
+        <div id="frens-list">
+          <div class="fren-row">
+            <div class="fren-av">SD</div>
+            <div class="fren-info"><div class="fren-name">@shadow_dev</div><div class="micro-label">joined 2h ago</div></div>
+            <div class="green" style="font-size:13px">+500</div>
+          </div>
+          <div class="fren-row">
+            <div class="fren-av">NR</div>
+            <div class="fren-info"><div class="fren-name">@netrunner</div><div class="micro-label">joined 1d ago</div></div>
+            <div class="green" style="font-size:13px">+500</div>
+          </div>
+          <div class="fren-row">
+            <div class="fren-av">G9</div>
+            <div class="fren-info"><div class="fren-name">@glitch_99</div><div class="micro-label">joined 3d ago</div></div>
+            <div class="green" style="font-size:13px">+500</div>
+          </div>
+        </div>
+        <p class="frens-total">Total earned from frens: <span class="green">1,500 credits</span></p>
+      </section>
+
+      <!-- TAB: PROFILE ──────────────────────── -->
+      <section id="tab-profile" class="tab-panel" role="tabpanel" aria-label="Profile">
+        <h2 class="section-hdr">// AGENT PROFILE</h2>
+
+        <div class="terminal-block">
+          <div class="t-row"><span class="t-key">&gt; AGENT_ID:</span>       <span class="t-val" id="p-id">USR_000000</span></div>
+          <div class="t-row"><span class="t-key">&gt; LEVEL:</span>           <span class="t-val" id="p-level">01 — SCRIPT KIDDIE</span></div>
+          <div class="t-row"><span class="t-key">&gt; TOTAL_CREDITS:</span>   <span class="t-val" id="p-credits">0</span></div>
+          <div class="t-row"><span class="t-key">&gt; LIFETIME_EARNED:</span> <span class="t-val" id="p-lifetime">0</span></div>
+          <div class="t-row"><span class="t-key">&gt; CLICKS_TOTAL:</span>    <span class="t-val" id="p-clicks">0</span></div>
+          <div class="t-row"><span class="t-key">&gt; UPGRADES_INSTALLED:</span><span class="t-val" id="p-upgrades">0/8</span></div>
+          <div class="t-row"><span class="t-key">&gt; PASSIVE_INCOME:</span>  <span class="t-val" id="p-passive">0/sec</span></div>
+          <div class="t-row"><span class="t-key">&gt; SESSION_STARTED:</span> <span class="t-val" id="p-session">--:--</span></div>
+          <div class="t-row"><span class="t-key">&gt; STATUS:</span>           <span class="t-val blink-slow">ACTIVE</span></div>
+        </div>
+
+        <h2 class="section-hdr" style="margin-top:20px">// ACHIEVEMENT BADGES</h2>
+        <div class="badges-grid" id="badges-grid"></div>
+      </section>
+
+    </main><!-- #content -->
+
+    <!-- ─── BOTTOM NAVIGATION ─── -->
+    <nav id="bottom-nav" role="navigation" aria-label="Main navigation">
+      <button class="nav-btn active" data-tab="hack">
+        <span class="nav-icon">⬡</span><span class="nav-lbl">HACK</span>
+      </button>
+      <button class="nav-btn" data-tab="upgrades">
+        <span class="nav-icon">▲</span><span class="nav-lbl">UPGRADES</span>
+      </button>
+      <button class="nav-btn" data-tab="leaderboard">
+        <span class="nav-icon">◈</span><span class="nav-lbl">RANKING</span>
+      </button>
+      <button class="nav-btn" data-tab="frens">
+        <span class="nav-icon">⚇</span><span class="nav-lbl">FRENS</span>
+      </button>
+      <button class="nav-btn" data-tab="profile">
+        <span class="nav-icon">◻</span><span class="nav-lbl">PROFILE</span>
+      </button>
+    </nav>
+
+  </div><!-- #app -->
+
+  <!-- ═══════════════════════════════════════════
+       LAYER 3 — TOAST CONTAINER (above all)
+  ═══════════════════════════════════════════ -->
+  <div id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ═══════════════════════════════════════════
+       JS SECTIONS (added incrementally below)
+  ═══════════════════════════════════════════ -->
+  <script>
+/* ═══════════════════════════════════════════════
+   JS-1  TELEGRAM INIT
+═══════════════════════════════════════════════ */
+const tg = window.Telegram?.WebApp ?? {
+  ready(){}, expand(){}, setHeaderColor(){}, setBackgroundColor(){},
+  HapticFeedback:{ impactOccurred(){}, notificationOccurred(){} },
+  openTelegramLink(){}
+};
+tg.ready();
+tg.expand();
+tg.setHeaderColor('#010A01');
+tg.setBackgroundColor('#010A01');
+
+/* ═══════════════════════════════════════════════
+   JS-2  CONSTANTS
+═══════════════════════════════════════════════ */
+const LEVEL_NAMES = [
+  '','SCRIPT KIDDIE','PHREAKER','BLACK HAT','ZERO-DAY',
+  'GHOST PROTOCOL','NEURAL AGENT','SYSTEM ROOT',
+  'THE ARCHITECT','MATRIX BREAKER','∅ (null god)'
+];
+
+const LEVEL_XP = [0,500,1500,4000,10000,25000,60000,150000,400000,1000000];
+
+const UPGRADES = [
+  {id:1,name:'Packet Sniffer',  desc:'Basic traffic intercept',        cost:25,  cb:1, pb:0, icon:'▶'},
+  {id:2,name:'Port Scanner',    desc:'Sweep open vulnerabilities',     cost:60,  cb:2, pb:0, icon:'◈'},
+  {id:3,name:'Keylogger Daemon',desc:'+1 credit/sec passive',          cost:120, cb:0, pb:1, icon:'⬡'},
+  {id:4,name:'SQL Injector',    desc:'Exploit database layers',        cost:220, cb:4, pb:0, icon:'⚡'},
+  {id:5,name:'Root Kit',        desc:'+3 credits/sec passive',         cost:400, cb:0, pb:3, icon:'◻'},
+  {id:6,name:'Zero-Day Exploit',desc:'Rare vulnerability, big boost',  cost:750, cb:10,pb:0, icon:'▲'},
+  {id:7,name:'Neural Worm',     desc:'Self-replicating, +8/sec',       cost:1400,cb:0, pb:8, icon:'⚇'},
+  {id:8,name:'PHANTOM PROTOCOL',desc:'Full system access. Unlimited.', cost:3000,cb:25,pb:20,icon:'◈'}
+];
+
+const BOOSTS = [
+  {id:'frenzy', name:'CLICK FRENZY', desc:'5× click power for 30 sec',    icon:'⚡',dur:30, cd:1800},
+  {id:'passive',name:'PASSIVE SURGE',desc:'10× passive income for 60 sec', icon:'◈',dur:60, cd:1800},
+  {id:'ghost',  name:'GHOST MODE',   desc:'Double all gains for 45 sec',   icon:'◻',dur:45, cd:1800}
+];
+
+const ACHIEVEMENTS = [
+  {id:'first_blood',  name:'FIRST BLOOD',     icon:'⚡'},
+  {id:'script_kiddie',name:'SCRIPT KIDDIE',    icon:'▶'},
+  {id:'upg_installed',name:'UPGRADE COMPLETE', icon:'▲'},
+  {id:'ghost_mode',   name:'GHOST',            icon:'◻'},
+  {id:'networked',    name:'NETWORKED',         icon:'⚇'},
+  {id:'architect',    name:'ARCHITECT',         icon:'⬡'}
+];
+
+const LB_DATA = [
+  {name:'@ghost_r00t',  score:1984231},{name:'@null_ptr',    score:1752000},
+  {name:'@0x_daemon',   score:1488510},{name:'@voidwalker',  score:1102340},
+  {name:'@phantom_x',   score:893001}, {name:'@netrunner',   score:741200},
+  {name:'@l33t_h4x0r', score:620500}, {name:'@darknode_7',  score:498210},
+  {name:'@tr0jan',      score:387900}, {name:'@root_access', score:301450},
+  {name:'@shadow_dev',  score:218000}, {name:'@cipher_gh0st',score:149200},
+  {name:'@matrix_7',    score:87340},  {name:'@byte_bender', score:41200},
+  {name:'@anon_agent',  score:12800}
+];
+
+const AV_COLORS = ['#1a5f1a','#2d4d2d','#1f3b1f','#0d4a0d','#2a5a2a','#163616','#1b4a1b','#245724','#0f3f0f'];
+
+const MCHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン' +
+               'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*<>/\\|[]{}';
+
+/* ═══════════════════════════════════════════════
+   JS-3  GAME STATE
+═══════════════════════════════════════════════ */
+function mkDefault() {
+  const hex = () => Math.random().toString(16).slice(2,8).toUpperCase();
+  return {
+    credits:0, lifetimeCredits:0, clicksTotal:0,
+    clickPower:1, passivePerSec:0,
+    energy:100, maxEnergy:100, level:1,
+    upgrades:{}, boosts:{}, achievements:{},
+    lastSeen:Date.now(),
+    agentId:'USR_'+hex(),
+    sessionStart:Date.now()
+  };
+}
+
+let S = mkDefault();
+
+function saveState() {
+  S.lastSeen = Date.now();
+  try { localStorage.setItem('nh_v1', JSON.stringify(S)); } catch(_){}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('nh_v1');
+    if (!raw) return;
+    const p = JSON.parse(raw);
+    S = {...mkDefault(), ...p};
+    if (!S.upgrades)     S.upgrades={};
+    if (!S.boosts)       S.boosts={};
+    if (!S.achievements) S.achievements={};
+  } catch(_){}
+}
+
+function calcOffline() {
+  if (!S.passivePerSec) return;
+  const secs = Math.min((Date.now() - S.lastSeen) / 1000, 8*3600);
+  if (secs < 30) return;
+  const earned = Math.floor(S.passivePerSec * secs);
+  if (!earned) return;
+  S.credits += earned;
+  S.lifetimeCredits += earned;
+  setTimeout(() => showToast('Welcome back. +' + fmt(earned) + ' credits earned offline.'), 900);
+}
+
+/* ═══════════════════════════════════════════════
+   JS-4  MATRIX RAIN
+═══════════════════════════════════════════════ */
+const mCv  = document.getElementById('matrix');
+const mCtx = mCv.getContext('2d');
+let mCols  = [];
+const pulsing = new Set();
+
+function initMatrix() {
+  mCv.width  = window.innerWidth;
+  mCv.height = window.innerHeight;
+  const cw = 14, n = Math.floor(mCv.width / cw);
+  mCols = Array.from({length:n}, (_,i) => ({
+    x: i*cw + cw/2,
+    y: Math.random() * mCv.height,
+    speed: 1 + Math.random()*2
+  }));
+}
+
+function drawMatrix() {
+  mCtx.fillStyle = 'rgba(1,10,1,0.05)';
+  mCtx.fillRect(0, 0, mCv.width, mCv.height);
+  mCtx.font = '13px monospace';
+  mCols.forEach((col, i) => {
+    const glow = pulsing.has(i);
+    mCtx.fillStyle  = glow ? '#00FF41' : '#00AA2A';
+    mCtx.shadowBlur = glow ? 10 : 0;
+    mCtx.shadowColor = '#00FF41';
+    mCtx.fillText(MCHARS[Math.random()*MCHARS.length|0], col.x, col.y);
+    col.y += col.speed;
+    if (col.y > mCv.height+16) { col.y = -16; col.speed = 1+Math.random()*2; }
+  });
+  mCtx.shadowBlur = 0;
+  requestAnimationFrame(drawMatrix);
+}
+
+function pulseCols(tapX) {
+  const ci = tapX/14|0;
+  for (let i=ci-3; i<=ci+3; i++) {
+    if (i>=0 && i<mCols.length) {
+      pulsing.add(i);
+      setTimeout(() => pulsing.delete(i), 400);
+    }
+  }
+}
+
+window.addEventListener('resize', initMatrix);
+
+/* ═══════════════════════════════════════════════
+   JS-5  TAB SYSTEM
+═══════════════════════════════════════════════ */
+let curTab = 'hack';
+
+function switchTab(tab) {
+  if (tab === curTab) return;
+  const leaving  = document.getElementById('tab-'+curTab);
+  leaving.classList.remove('visible');
+  setTimeout(() => leaving.classList.remove('active'), 250);
+  curTab = tab;
+  const arriving = document.getElementById('tab-'+tab);
+  arriving.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => arriving.classList.add('visible')));
+  document.getElementById('content').scrollTop = 0;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  if (tab==='upgrades')    renderUpgrades();
+  if (tab==='leaderboard') renderLeaderboard();
+  if (tab==='profile')     updateProfile();
+}
+
+/* ═══════════════════════════════════════════════
+   JS-6  CORE SVG BY LEVEL
+═══════════════════════════════════════════════ */
+const HEX6  = '50,24 72.5,37 72.5,63 50,76 27.5,63 27.5,37';
+const HEX6S = '50,30 67,40 67,60 50,70 33,60 33,40';
+
+function coreSVG(lv) {
+  if (lv<=2) return `
+    <circle cx="50" cy="50" r="36" stroke="#00AA2A" stroke-width="1" fill="none" opacity="0.4"/>
+    <text x="50" y="58" text-anchor="middle" font-family="monospace" font-size="22" fill="#00FF41">NH</text>`;
+
+  if (lv<=4) return `
+    <circle cx="50" cy="50" r="38" stroke="#00AA2A" stroke-width="0.5" fill="none" opacity="0.25"/>
+    <polygon points="${HEX6}" stroke="#00FF41" stroke-width="1.5" fill="none" opacity="0.85"/>
+    <line x1="50" y1="24" x2="50" y2="10"    stroke="#00AA2A" stroke-width="1" opacity="0.5"/>
+    <line x1="72.5" y1="37" x2="83" y2="30"  stroke="#00AA2A" stroke-width="1" opacity="0.5"/>
+    <line x1="72.5" y1="63" x2="83" y2="70"  stroke="#00AA2A" stroke-width="1" opacity="0.5"/>
+    <line x1="50" y1="76" x2="50" y2="90"    stroke="#00AA2A" stroke-width="1" opacity="0.5"/>
+    <line x1="27.5" y1="63" x2="17" y2="70"  stroke="#00AA2A" stroke-width="1" opacity="0.5"/>
+    <line x1="27.5" y1="37" x2="17" y2="30"  stroke="#00AA2A" stroke-width="1" opacity="0.5"/>
+    <text x="50" y="55" text-anchor="middle" font-family="monospace" font-size="14" fill="#00FF41">NH</text>`;
+
+  if (lv<=6) return `
+    <circle cx="50" cy="50" r="38" stroke="#00AA2A" stroke-width="0.5" fill="none" opacity="0.2"/>
+    <circle cx="50" cy="50" r="22" stroke="#00FF41" stroke-width="0.5" fill="none" opacity="0.3"/>
+    <polygon points="${HEX6}" stroke="#00FF41" stroke-width="1.5" fill="rgba(0,255,65,0.04)" opacity="0.9"/>
+    <line x1="50" y1="10" x2="50" y2="90" stroke="#003B00" stroke-width="0.5"/>
+    <line x1="10" y1="50" x2="90" y2="50" stroke="#003B00" stroke-width="0.5"/>
+    <line x1="18" y1="18" x2="82" y2="82" stroke="#003B00" stroke-width="0.5" opacity="0.5"/>
+    <line x1="82" y1="18" x2="18" y2="82" stroke="#003B00" stroke-width="0.5" opacity="0.5"/>
+    <circle cx="50" cy="50" r="7" fill="#00FF41" opacity="0.75"/>
+    <text x="50" y="37" text-anchor="middle" font-family="monospace" font-size="11" fill="#00FF41">NH</text>`;
+
+  if (lv<=8) return `
+    <circle cx="50" cy="50" r="40" stroke="#00AA2A" stroke-width="0.5" fill="none" opacity="0.2"/>
+    <circle cx="50" cy="50" r="28" stroke="#00FF41" stroke-width="1"   fill="none" opacity="0.35"/>
+    <circle cx="50" cy="50" r="16" stroke="#00AA2A" stroke-width="1"   fill="rgba(0,255,65,0.06)"/>
+    <polygon points="${HEX6}"  stroke="#00FF41" stroke-width="2"   fill="rgba(0,255,65,0.06)"/>
+    <polygon points="${HEX6S}" stroke="#00AA2A" stroke-width="0.5" fill="none" opacity="0.45"/>
+    <line x1="50" y1="10" x2="50" y2="90" stroke="#003B00" stroke-width="0.5"/>
+    <line x1="10" y1="50" x2="90" y2="50" stroke="#003B00" stroke-width="0.5"/>
+    <circle cx="50" cy="22" r="3" fill="#00FF41" opacity="0.9"/>
+    <circle cx="78" cy="50" r="3" fill="#00FF41" opacity="0.9"/>
+    <circle cx="50" cy="78" r="3" fill="#00FF41" opacity="0.9"/>
+    <circle cx="22" cy="50" r="3" fill="#00FF41" opacity="0.9"/>
+    <circle cx="50" cy="50" r="7" fill="#00FF41"/>`;
+
+  return `
+    <defs><filter id="gf"><feGaussianBlur stdDeviation="2.5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <circle cx="50" cy="50" r="42" stroke="#00FF41" stroke-width="0.5" fill="none" opacity="0.4"/>
+    <circle cx="50" cy="50" r="32" stroke="#00AA2A" stroke-width="1"   fill="none" opacity="0.4"/>
+    <circle cx="50" cy="50" r="20" stroke="#00FF41" stroke-width="1.5" fill="rgba(0,255,65,0.06)"/>
+    <circle cx="50" cy="50" r="10" stroke="#00AA2A" stroke-width="1"   fill="rgba(0,255,65,0.12)"/>
+    <polygon points="${HEX6}"  stroke="#00FF41" stroke-width="2"   fill="rgba(0,255,65,0.08)" filter="url(#gf)"/>
+    <polygon points="${HEX6S}" stroke="#00AA2A" stroke-width="1"   fill="none" opacity="0.5"/>
+    <line x1="50" y1="8"  x2="50" y2="92" stroke="#003B00" stroke-width="0.5"/>
+    <line x1="8"  y1="50" x2="92" y2="50" stroke="#003B00" stroke-width="0.5"/>
+    <line x1="15" y1="15" x2="85" y2="85" stroke="#003B00" stroke-width="0.5" opacity="0.4"/>
+    <line x1="85" y1="15" x2="15" y2="85" stroke="#003B00" stroke-width="0.5" opacity="0.4"/>
+    <circle cx="50" cy="18" r="3.5" fill="#00FF41" filter="url(#gf)"/>
+    <circle cx="82" cy="50" r="3.5" fill="#00FF41" filter="url(#gf)"/>
+    <circle cx="50" cy="82" r="3.5" fill="#00FF41" filter="url(#gf)"/>
+    <circle cx="18" cy="50" r="3.5" fill="#00FF41" filter="url(#gf)"/>
+    <circle cx="50" cy="50" r="8"   fill="#00FF41" filter="url(#gf)"/>`;
+}
+
+function updateCoreVisuals() {
+  const lv = S.level;
+  document.getElementById('core-svg').innerHTML = coreSVG(lv);
+  document.getElementById('ring-mid').style.display   = lv>=3 ? '' : 'none';
+  document.getElementById('ring-inner').style.display = lv>=5 ? '' : 'none';
+
+  const nodesEl = document.getElementById('nodes-orbit');
+  if (lv>=7) {
+    nodesEl.style.display = '';
+    if (!nodesEl.children.length) {
+      for (let i=0;i<6;i++) {
+        const a=i/6*Math.PI*2, r=105;
+        const nd = document.createElement('div');
+        nd.className = 'data-node';
+        nd.style.left = (Math.cos(a)*r)+'px';
+        nd.style.top  = (Math.sin(a)*r)+'px';
+        nodesEl.appendChild(nd);
+      }
+    }
+  } else { nodesEl.style.display='none'; nodesEl.innerHTML=''; }
+
+  const partEl = document.getElementById('particles-orbit');
+  if (lv>=9) {
+    partEl.style.display = '';
+    if (!partEl.children.length) {
+      [[4,90,'spin 1.8s linear infinite'],[4,112,'spin-r 2.8s linear infinite']].forEach(([n,r,anim]) => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = `position:absolute;top:0;left:0;width:0;height:0;animation:${anim}`;
+        for (let i=0;i<n;i++) {
+          const a = i/n*Math.PI*2 + (r>100 ? Math.PI/4 : 0);
+          const d = document.createElement('div');
+          d.className = 'p-dot';
+          d.style.left = (Math.cos(a)*r)+'px';
+          d.style.top  = (Math.sin(a)*r)+'px';
+          wrap.appendChild(d);
+        }
+        partEl.appendChild(wrap);
+      });
+    }
+  } else { partEl.style.display='none'; partEl.innerHTML=''; }
+}
+
+/* ═══════════════════════════════════════════════
+   JS-7  CORE CLICK HANDLER
+═══════════════════════════════════════════════ */
+const coreEl = document.getElementById('core');
+coreEl.addEventListener('pointerdown', e => { e.preventDefault(); handleClick(e); });
+
+function handleClick(e) {
+  if (S.energy<=0) {
+    const ef = document.getElementById('energy-fill');
+    ef.classList.add('ef-danger');
+    setTimeout(() => ef.classList.remove('ef-danger'), 320);
+    tg.HapticFeedback.notificationOccurred('warning');
+    return;
+  }
+  const now = Date.now();
+  let power = S.clickPower;
+  if ((S.boosts.frenzy?.activeUntil||0)>now)  power*=5;
+  if ((S.boosts.ghost?.activeUntil||0)>now)   power*=2;
+
+  S.credits         += power;
+  S.lifetimeCredits += power;
+  S.clicksTotal++;
+  S.energy = Math.max(0, S.energy-1);
+
+  tg.HapticFeedback.impactOccurred('medium');
+
+  coreEl.style.transform = 'translate(-50%,-50%) scale(0.94)';
+  setTimeout(()=>{ coreEl.style.transform='translate(-50%,-50%) scale(1.02)'; },60);
+  setTimeout(()=>{ coreEl.style.transform='translate(-50%,-50%) scale(1)'; },  120);
+
+  coreEl.classList.add('core-flare');
+  setTimeout(()=> coreEl.classList.remove('core-flare'), 400);
+
+  spawnFloat(e.clientX, e.clientY, '+'+fmt(power));
+  pulseCols(e.clientX);
+
+  if (S.clicksTotal===1) unlockAch('first_blood');
+  checkLevel();
+  updateHackUI();
+  saveState();
+}
+
+function spawnFloat(x, y, txt) {
+  const el = document.createElement('div');
+  el.className   = 'float-txt';
+  el.textContent = txt;
+  el.style.left  = (x-16)+'px';
+  el.style.top   = (y-24)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 650);
+}
+
+/* ═══════════════════════════════════════════════
+   JS-8  GAME LOOP  (1 s tick)
+═══════════════════════════════════════════════ */
+setInterval(()=>{
+  const now = Date.now();
+  if (S.passivePerSec>0) {
+    let pp = S.passivePerSec;
+    if ((S.boosts.passive?.activeUntil||0)>now) pp*=10;
+    if ((S.boosts.ghost?.activeUntil||0)>now)   pp*=2;
+    S.credits         += pp;
+    S.lifetimeCredits += pp;
+  }
+  if (S.energy<S.maxEnergy) S.energy = Math.min(S.maxEnergy, S.energy+1);
+  checkLevel();
+  updateHackUI();
+  if (curTab==='upgrades')  renderUpgrades();
+  if (curTab==='profile')   updateProfile();
+  saveState();
+}, 1000);
+
+/* ═══════════════════════════════════════════════
+   JS-9  HACK SCREEN UI
+═══════════════════════════════════════════════ */
+let _prevC = 0;
+
+function updateHackUI() {
+  const cdEl = document.getElementById('credits-display');
+  if (_prevC!==S.credits) { animVal(cdEl, _prevC, S.credits, 300); _prevC=S.credits; }
+  document.getElementById('passive-display').textContent = fmt(S.passivePerSec);
+
+  const pct = S.energy/S.maxEnergy*100;
+  document.getElementById('energy-fill').style.width  = pct+'%';
+  document.getElementById('energy-label').textContent = 'ENERGY: '+S.energy+' / '+S.maxEnergy;
+  document.getElementById('energy-recharge').style.display = S.energy===0 ? 'inline' : 'none';
+  coreEl.classList.toggle('core-depleted', S.energy===0);
+
+  const lv = S.level;
+  document.getElementById('level-label').textContent = 'LVL '+pad(lv)+' — '+LEVEL_NAMES[lv];
+  if (lv<10) {
+    const base   = LEVEL_XP[lv-1];
+    const needed = LEVEL_XP[lv]-base;
+    const cur    = S.lifetimeCredits-base;
+    document.getElementById('xp-fill').style.width  = Math.min(100,cur/needed*100)+'%';
+    document.getElementById('xp-label').textContent = fmt(Math.max(0,cur))+' / '+fmt(needed)+' XP';
+  } else {
+    document.getElementById('xp-fill').style.width  = '100%';
+    document.getElementById('xp-label').textContent = 'MAX LEVEL';
+  }
+}
+
+function animVal(el, from, to, dur) {
+  const t0 = performance.now();
+  (function tick(now){
+    const t   = Math.min(1,(now-t0)/dur);
+    const e   = 1-Math.pow(1-t,3);
+    el.textContent = fmt(Math.round(from+(to-from)*e));
+    if (t<1) requestAnimationFrame(tick);
+  })(t0);
+}
+
+/* ═══════════════════════════════════════════════
+   JS-10  LEVEL SYSTEM
+═══════════════════════════════════════════════ */
+function calcLevel() {
+  let lv=1;
+  for (let i=LEVEL_XP.length-1;i>=0;i--) {
+    if (S.lifetimeCredits>=LEVEL_XP[i]) { lv=i+1; break; }
+  }
+  return Math.min(10,lv);
+}
+
+function checkLevel() {
+  const nv = calcLevel();
+  if (nv>S.level) { S.level=nv; onLevelUp(nv); }
+}
+
+function onLevelUp(lv) {
+  const fl=document.createElement('div');
+  fl.className='lvlup-flash';
+  document.body.appendChild(fl);
+  setTimeout(()=>fl.remove(),220);
+
+  showToast('LEVEL UP → LVL '+pad(lv)+' — '+LEVEL_NAMES[lv]);
+  tg.HapticFeedback.notificationOccurred('success');
+  setTimeout(()=>tg.HapticFeedback.notificationOccurred('success'),200);
+
+  updateCoreVisuals();
+  if (lv>=2) unlockAch('script_kiddie');
+  if (lv>=8) unlockAch('architect');
+}
+
+/* ═══════════════════════════════════════════════
+   JS-11  UPGRADES + BOOSTS
+═══════════════════════════════════════════════ */
+function computeStats() {
+  let cp=1, pp=0;
+  UPGRADES.forEach(u=>{ if(S.upgrades[u.id]){ cp+=u.cb; pp+=u.pb; } });
+  S.clickPower=cp; S.passivePerSec=pp;
+}
+
+function buyUpgrade(id) {
+  const u=UPGRADES.find(x=>x.id===id);
+  if (!u||S.upgrades[id]||S.credits<u.cost) return;
+  S.credits-=u.cost;
+  S.upgrades[id]=true;
+  computeStats();
+  tg.HapticFeedback.notificationOccurred('success');
+  showToast('INSTALLED: '+u.name);
+  unlockAch('upg_installed');
+  renderUpgrades(); updateHackUI(); saveState();
+}
+
+function renderUpgrades() {
+  document.getElementById('upgrades-list').innerHTML = UPGRADES.map(u=>{
+    const bought=!!S.upgrades[u.id];
+    const afford=!bought&&S.credits>=u.cost;
+    const cls=bought?'upg-purchased':afford?'upg-affordable':'upg-locked';
+    const fx = u.cb>0?'+'+u.cb+' clicks/tap':'+'+u.pb+'/sec';
+    return `<div class="upg-card ${cls}">
+      <div class="upg-icon">${u.icon}</div>
+      <div class="upg-info">
+        <div class="upg-name">${u.name}</div>
+        <div class="upg-desc">${u.desc}</div>
+        <div class="upg-fx">${fx}</div>
+      </div>
+      <div class="upg-right">
+        <div class="upg-cost">${bought?'---':fmt(u.cost)}</div>
+        <button class="btn-install${bought?' installed':''}"
+          ${bought||!afford?'disabled':''}
+          onclick="buyUpgrade(${u.id})"
+        >${bought?'✓ INSTALLED':'INSTALL'}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('boosts-list').innerHTML = BOOSTS.map(b=>{
+    const now=Date.now(), bs=S.boosts[b.id]||{};
+    const isAct=(bs.activeUntil||0)>now;
+    const isCd=!isAct&&(bs.cooldownUntil||0)>now;
+    let timer='', btnTxt='ACTIVATE', dis='', cls='boost-card';
+    if (isAct) {
+      timer=`<div class="boost-timer">${fmtT(Math.ceil((bs.activeUntil-now)/1000))} remaining</div>`;
+      cls+=' boost-active'; btnTxt='ACTIVE'; dis='disabled';
+    } else if (isCd) {
+      timer=`<div class="boost-timer cd">${fmtT(Math.ceil((bs.cooldownUntil-now)/1000))} cooldown</div>`;
+      cls+=' boost-cooldown'; dis='disabled';
+    }
+    return `<div class="${cls}">
+      <div class="boost-icon">${b.icon}</div>
+      <div class="boost-info">
+        <div class="boost-name">${b.name}</div>
+        <div class="boost-desc">${b.desc}</div>
+        ${timer}
+      </div>
+      <button class="btn-boost" ${dis} onclick="activateBoost('${b.id}')">${btnTxt}</button>
+    </div>`;
+  }).join('');
+}
+
+function activateBoost(id) {
+  const b=BOOSTS.find(x=>x.id===id); if(!b) return;
+  const now=Date.now(), bs=S.boosts[id]||{};
+  if ((bs.activeUntil||0)>now||(bs.cooldownUntil||0)>now) return;
+  S.boosts[id]={ activeUntil:now+b.dur*1000, cooldownUntil:now+b.cd*1000 };
+  const sw=document.createElement('div');
+  sw.className='scanline-sweep';
+  document.body.appendChild(sw);
+  setTimeout(()=>sw.remove(),480);
+  tg.HapticFeedback.impactOccurred('heavy');
+  showToast('BOOST ACTIVATED: '+b.name);
+  if (id==='ghost') unlockAch('ghost_mode');
+  renderUpgrades(); saveState();
+}
+
+/* ═══════════════════════════════════════════════
+   JS-12  LEADERBOARD
+═══════════════════════════════════════════════ */
+function renderLeaderboard() {
+  const ps = Math.floor(S.credits);
+  const all = [...LB_DATA,{name:'@you',score:ps,me:true}].sort((a,b)=>b.score-a.score);
+  const myRank = all.findIndex(e=>e.me)+1;
+
+  const rows = LB_DATA.map((e,i)=>{
+    const rk=i+1;
+    const rc=rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
+    const ini=e.name.replace('@','').slice(0,2).toUpperCase();
+    return `<div class="lb-row">
+      <div class="lb-rank ${rc}">#${pad(rk)}</div>
+      <div class="lb-av" style="background:${AV_COLORS[i%AV_COLORS.length]}">${ini}</div>
+      <div class="lb-name">${e.name}</div>
+      <div class="lb-score">${fmt(e.score)}</div>
+    </div>`;
+  }).join('');
+
+  const meRow=`<div class="lb-row lb-me">
+    <div class="lb-rank">#${pad(myRank)}</div>
+    <div class="lb-av" style="background:#1a5f1a">ME</div>
+    <div class="lb-name">@you</div>
+    <div class="lb-score">${fmt(ps)}</div>
+    <div class="lb-you">YOU</div>
+  </div>`;
+
+  document.getElementById('lb-list').innerHTML =
+    rows + (myRank>15 ? '<div class="lb-ellipsis">· · ·</div>'+meRow : '');
+}
+
+/* ═══════════════════════════════════════════════
+   JS-13  FRENS
+═══════════════════════════════════════════════ */
+function copyReferralLink() {
+  const link = document.getElementById('referral-link').textContent.trim();
+  navigator.clipboard.writeText(link).catch(()=>{
+    const t=document.createElement('textarea');
+    t.value=link; document.body.appendChild(t); t.select();
+    document.execCommand('copy'); t.remove();
+  });
+  showToast('Link copied to clipboard');
+}
+
+function shareReferralLink() {
+  const link=document.getElementById('referral-link').textContent.trim();
+  const msg='Join NEURAL HACK — hack the global AI system! '+link;
+  try { tg.openTelegramLink('https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent(msg)); }
+  catch(_){ showToast('Open in Telegram to share'); }
+}
+
+/* ═══════════════════════════════════════════════
+   JS-14  PROFILE + ACHIEVEMENTS
+═══════════════════════════════════════════════ */
+function updateProfile() {
+  document.getElementById('p-id').textContent      = S.agentId;
+  document.getElementById('p-level').textContent   = pad(S.level)+' — '+LEVEL_NAMES[S.level];
+  document.getElementById('p-credits').textContent = fmt(S.credits);
+  document.getElementById('p-lifetime').textContent= fmt(S.lifetimeCredits);
+  document.getElementById('p-clicks').textContent  = fmt(S.clicksTotal);
+  document.getElementById('p-upgrades').textContent= Object.keys(S.upgrades).length+'/8';
+  document.getElementById('p-passive').textContent = S.passivePerSec+'/sec';
+  document.getElementById('p-session').textContent =
+    new Date(S.sessionStart).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  renderBadges();
+}
+
+function renderBadges() {
+  document.getElementById('badges-grid').innerHTML = ACHIEVEMENTS.map(a=>{
+    const ok=!!S.achievements[a.id];
+    return `<div class="badge${ok?' unlocked':''}">
+      <div class="badge-icon">${ok?a.icon:'??'}</div>
+      <div class="badge-name">${ok?a.name:'???'}</div>
+    </div>`;
+  }).join('');
+}
+
+function unlockAch(id) {
+  if (S.achievements[id]) return;
+  S.achievements[id]=true;
+  const a=ACHIEVEMENTS.find(x=>x.id===id);
+  if (a) showToast('ACHIEVEMENT UNLOCKED: '+a.name);
+  saveState();
+}
+
+/* ═══════════════════════════════════════════════
+   JS-15  TOAST SYSTEM
+═══════════════════════════════════════════════ */
+const toastWrap = document.getElementById('toast-wrap');
+let toastQ=[], toastBusy=false;
+
+function showToast(msg, type='info') {
+  toastQ.push({msg,type});
+  if (!toastBusy) nextToast();
+}
+
+function nextToast() {
+  if (!toastQ.length) { toastBusy=false; return; }
+  toastBusy=true;
+  const {msg,type}=toastQ.shift();
+  const icon=type==='warn'?'⚡':type==='error'?'✕':'▶';
+  const el=document.createElement('div');
+  el.className='toast'+(type!=='info'?' t-'+type:'');
+  el.innerHTML=`<span class="toast-icon">${icon}</span>${msg}`;
+  toastWrap.appendChild(el);
+  setTimeout(()=>{
+    el.classList.add('t-hide');
+    setTimeout(()=>{ el.remove(); nextToast(); },240);
+  }, 2200);
+}
+
+/* ═══════════════════════════════════════════════
+   JS-16  UTILITIES
+═══════════════════════════════════════════════ */
+function fmt(n) {
+  n=Math.floor(n);
+  if (n>=1000000) return (n/1000000).toFixed(1).replace(/\.0$/,'')+'M';
+  if (n>=10000)   return (n/1000).toFixed(1).replace(/\.0$/,'')+'K';
+  return n.toLocaleString();
+}
+function pad(n)   { return String(n).padStart(2,'0'); }
+function fmtT(s)  { return pad(Math.floor(s/60))+':'+pad(s%60); }
+
+/* ═══════════════════════════════════════════════
+   JS-17  INIT
+═══════════════════════════════════════════════ */
+function init() {
+  loadState();
+  calcOffline();
+  S.level = calcLevel();
+  S.sessionStart = Date.now();
+  computeStats();
+
+  document.getElementById('referral-link').textContent = 't.me/neuralhack_bot?start='+S.agentId;
+  document.getElementById('p-id').textContent          = S.agentId;
+
+  // extend core-body transition to include transform
+  const s=document.createElement('style');
+  s.textContent='.core-body{transition:box-shadow 400ms ease-out,transform 60ms ease-out;}';
+  document.head.appendChild(s);
+
+  // hide rings for low levels before paint
+  document.getElementById('ring-mid').style.display   = 'none';
+  document.getElementById('ring-inner').style.display = 'none';
+
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.addEventListener('click', ()=> switchTab(b.dataset.tab))
+  );
+  document.getElementById('btn-copy').addEventListener('click',  copyReferralLink);
+  document.getElementById('btn-share').addEventListener('click', shareReferralLink);
+
+  initMatrix();
+  drawMatrix();
+  updateCoreVisuals();
+  updateHackUI();
+  renderUpgrades();
+  renderLeaderboard();
+  updateProfile();
+
+  _prevC = S.credits;
+  requestAnimationFrame(()=> requestAnimationFrame(()=>
+    document.getElementById('tab-hack').classList.add('visible')
+  ));
+}
+
+init();
+  </script>
+
+</body>
+</html>
